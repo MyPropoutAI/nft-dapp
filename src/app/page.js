@@ -7,7 +7,7 @@ import { useSendTransaction } from "thirdweb/react";
 import { client, liskSepolia } from './thirdweb';
 import Modal from 'react-modal';
 import { comma } from 'postcss/lib/list';
-import { useActiveAccount } from "thirdweb/react";
+import { useActiveAccount, useReadContract } from "thirdweb/react";
 
 
 
@@ -20,42 +20,42 @@ export default function Home() {
     const [tokenId, setTokenId] = useState('');
     const [whitelistAddresses, setWhitelistAddresses] = useState('');
     const [whitelistMembershipType, setWhitelistMembershipType] = useState('0');
-    const contractAddress = "0xf4a02703f125EDC2bf1518c4398B8766ec3212Ba"; 
+    const contractAddress = "0x12D77B8ea61863E478Aa6B766f489Af5F7a95aa7"; 
 
     const [isMintModalOpen, setMintModalOpen] = useState(false);
     const [isDetailsModalOpen, setDetailsModalOpen] = useState(false);
     const [isOpenMintModalOpen, setOpenMintModalOpen] = useState(false);
-    const activeAccount = useActiveAccount();
-    console.log("address", activeAccount?.address);
+    // const activeAccount = useActiveAccount();
+    // console.log("address", activeAccount?.address);
+    const { mutate: sendTx } = useSendTransaction();
     const mintNFT = async () => {
         const contract = getContract({
             client,
             address: contractAddress,
             chain: liskSepolia,
         });
-
+        
         try {
-            const transaction = prepareContractCall({
-                contract,
-                method: "function mintNFT(address to)",
-                params: [recipient],
+          
+          const transaction = prepareContractCall({
+              contract,
+              method: "function mintNFT(address to)",
+              params: [recipient],
             });
+            const result = await sendTx(transaction); // Await the sendTx call
+          
+          console.log("result", result)
+          alert('Minted successfully ' + result.transactionHash);
+          setMintModalOpen(false);
 
-            const result = await sendTransaction({
-                transaction,
-                account: walletAddress,
-            });
-            console.log("result", result)
-            alert('NFT Minted Successfully! Transaction Hash: ' + result.transactionHash);
-            setMintModalOpen(false);
-        } catch (error) {
-          console.log(error)
-            alert(`Minting Failed: ${error.message}`);
-        }
+      } catch (error) {
+          console.log("error", error)
+          alert(`Error Minting: ${error.message}`);
+      }
     };
 
     const getNFTDetails = async () => {
-        if (walletAddress) {
+        
             const contract = getContract({
                 client,
                 address: contractAddress,
@@ -63,42 +63,47 @@ export default function Home() {
             });
 
             try {
-                const details = await contract.call("getNFTDetails", tokenId);
-                setNftDetails(`Membership Type: ${details[0]}, Royalty Percentage: ${details[1]}`);
-                setDetailsModalOpen(false);
+              const { data, isLoading } = useReadContract({
+                contract,
+                method: "fuunction getNFTDetails(uint256 tokenId) returns (uint8, uint256)",
+                params: [tokenId],
+              },
+            );
+            console.log("result", data)
             } catch (error) {
                 alert(`Error Fetching Details: ${error.message}`);
             }
-        }
+        
     };
+
+    
 
     const openMint = async () => {
       const contract = getContract({
         client,
         address: contractAddress,
-            chain: liskSepolia,
-        });
+        chain: liskSepolia,
+      });
 
-        // Split the comma-separated addresses into an array
-        const addresses = whitelistAddresses.split(',').map(address => address.trim());
-        try {
+      // Split the comma-separated addresses into an array
+      const addresses = whitelistAddresses.split(',').map(address => address.trim());
+      try {
           
-            const transaction = prepareContractCall({
-                contract,
-                method: "function openMint(address[] addresses, uint8[] membershipTypes)",
-                params: [addresses, Array(addresses.length).fill(Number(whitelistMembershipType))],
-              });
-              const { mutate: sendTx, data: transactionResult } = useSendTransaction();
-              const result = sendTx(transaction);
-            
-            console.log("result", result)
-            alert('Minting Opened for Addresses! Transaction Hash: ' + result.transactionHash);
-            setOpenMintModalOpen(false);
+          const transaction = prepareContractCall({
+              contract,
+              method: "function openMint(address[] addresses, uint8[] membershipTypes)",
+              params: [addresses, Array(addresses.length).fill(Number(whitelistMembershipType))],
+          });
+          const result = await sendTx(transaction); // Await the sendTx call
+          
+          console.log("result", result)
+          alert('Minting Opened for Addresses! Transaction Hash: ' + result.transactionHash);
+          setOpenMintModalOpen(false);
 
-        } catch (error) {
+      } catch (error) {
           console.log("error", error)
-            alert(`Error Opening Mint: ${error.message}`);
-        }
+          alert(`Error Opening Mint: ${error.message}`);
+      }
     };
 
     return (

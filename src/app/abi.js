@@ -1,5 +1,4 @@
 export const contractABI = [
-    
     {
         "inputs": [],
         "stateMutability": "nonpayable",
